@@ -11,12 +11,14 @@ logging.basicConfig(filename='outages.log',
                     format='%(levelname)s %(asctime)s %(message)s',
                     level=logging.INFO)
 
+ping_wait_time = '1' #wait for pings.  above 4 may cause weird behavior.
+# faster, but leaves out details, and may not handle latency very well
 
-# faster, but leaves out details
+
 def quick_tracer(address=None):
     die = False
     while True:
-        while trace_time.is_set() == False:
+        while not trace_time.is_set():
             # evaluates if trace_time is set every second.
             # exit_time.is_set() was used before, but it drove cpu usage to 15%.
             exit_time.wait(1)
@@ -34,7 +36,7 @@ def quick_tracer(address=None):
         trace_time.wait()
         logging.info('quick tracer starting')
         time_of_start = datetime.now().isoformat()
-        p = subprocess.Popen(["tracert", "-d", "-w", "1", address], stdout=subprocess.PIPE)
+        p = subprocess.Popen(["tracert", "-d", "-w", ping_wait_time, address], stdout=subprocess.PIPE)
         trace_write_lock.acquire()
         with open("traces.txt", "ab") as output:
             output.write(str.encode("Quick trace results at " + time_of_start))
@@ -49,7 +51,7 @@ def quick_tracer(address=None):
 def full_tracer(address=None):
     die = False
     while True:
-        while trace_time.is_set() == False:
+        while not trace_time.is_set():
             exit_time.wait(1)  # evaluates if trace_time is set every second.
             if exit_time.is_set():
                 logging.debug("full tracer has seen it is time to die.")
@@ -74,8 +76,9 @@ def full_tracer(address=None):
 
 
 # pings given address. Has most output suppressed to reduce console clutter.
+# only sends one packet.
 def ping(address):
-    command = ['ping', '-n', '1', '-w', '2', address]
+    command = ['ping', '-n', '1', '-w', ping_wait_time, address]
     return (subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)) == 0
 
 
